@@ -2,6 +2,7 @@ package com.pinyougou.manager.controller;
 import java.util.Arrays;
 import java.util.List;
 
+import com.pinyougou.page.ItemPageService;
 import com.pinyougou.pojo.TbItem;
 import com.pinyougou.pojo.group.Goods;
 import com.pinyougou.search.service.ItemSearchService;
@@ -27,7 +28,8 @@ public class GoodsController {
 	private GoodsService goodsService;
 	@Reference
 	private ItemSearchService itemSearchService;
-
+	@Reference(timeout = 40000)
+    private ItemPageService itemPageService;
 	
 	/**
 	 * 返回全部列表
@@ -76,14 +78,16 @@ public class GoodsController {
 			//按照SPU ID查询 SKU列表(状态为1)
 			if(status.equals("1")){//审核通过
 				List<TbItem> itemList = goodsService.findItemListByGoodsIdandStatus(Ids, status);
-				//调用搜索接口实现数据批量导入
+				//调用搜索接口实现数据批量导入,将审核通过的商品加入到solr索引库
 				if(itemList.size()>0){
 					itemSearchService.importList(itemList);
 				}else{
 					System.out.println("没有明细数据");
 				}
-			}
-			return new Result(true, "修改成功");
+				for(Long id:Ids){
+					itemPageService.getItemHtml(id);
+				}
+			} return new Result(true, "修改成功");
 		} catch (Exception e) {
 			e.printStackTrace();
 			return new Result(false, "修改失败");
@@ -128,5 +132,15 @@ public class GoodsController {
 	public PageResult search(@RequestBody TbGoods goods, int page, int rows  ){
 		return goodsService.findPage(goods, page, rows);		
 	}
-	
+	/*
+	* @Description: 生成静态模板页
+	* @param: [goodsId]
+	* @return: void
+	* @author: TanZhiTong
+	* @Date: 2018/12/13
+	*/
+    @RequestMapping("/getHtml")
+	public void getHtml(Long goodsId){
+		itemPageService.getItemHtml(goodsId);
+	}
 }
